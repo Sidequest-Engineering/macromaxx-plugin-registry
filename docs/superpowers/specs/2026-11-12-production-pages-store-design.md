@@ -1,6 +1,6 @@
 # Production Pages plugin registry
 
-Status: proposal awaiting user approval. An independent read-only builder check found nothing important left unanswered for implementation planning. This document does not authorize a production bootstrap or claim operational readiness.
+Status: user approved implementation ("Abfahrt") and explicitly requested self-approval for EinCloudy. An independent read-only builder check found nothing important left unanswered before that amendment. Offline key custody/backup is still an operator-confirmed activation gate, not an inferred fact.
 
 ## Intent and agreed decisions
 
@@ -50,9 +50,9 @@ Builder proposal: retain the existing strict `registry.json`, source-descriptor 
 ## Required GitHub review controls
 
 - `.github/CODEOWNERS` assigns all repository contents, including CODEOWNERS/workflows/tooling/trust inputs, to `@Sidequest-Engineering/registry-maintainers`.
-- Protect main with required passing registry checks, at least one Codeowner approval, dismissal of stale approvals, approval of the latest push by someone else, and no silent admin/bot bypass. Disallow force pushes and branch deletion. Existing stronger protections must be preserved, not replaced with weaker defaults.
+- Protect main with required passing registry checks, at least one Codeowner approval, dismissal of stale approvals and approval of the latest push by someone else. The user's later amendment authorizes one explicit PR-review exception for EinCloudy, not a blanket admin/bot bypass. Keep PR submission, checks, force-push and deletion restrictions in a separate ruleset without bypass actors. Existing stronger protections must be preserved, not replaced with weaker defaults.
 - Verify actual rules and CODEOWNERS validity through GitHub, not just committed configuration text. Direct pushes and deployment from unreviewed branches must be rejected. Contributors never obtain signing credentials or hosting administration permissions.
-- **Known activation gate:** GitHub currently exposes only `EinCloudy` as an organization member. That maintainer can approve externally authored contributions but cannot approve their own PR. Initial production changes authored through this account must therefore wait for an independent authorized reviewer; do not postpone protection until after an unreviewed production deployment or invent a bypass. The design can be prepared and tested, but activation is not declared complete while this gate remains unresolved.
+- **Explicit self-approval amendment:** GitHub does not allow a literal approving review on one's own PR. Implement the user's request as a named, audited, pull-request-only review exception for EinCloudy's immutable GitHub user ID. CI and PR submission remain mandatory. Native GitHub bypass is actor-based, not PR-author-based: the named actor can also override review on another author's PR; document this rather than falsely claiming that GitHub restricts the capability to self-authored changes. Ordinary contributors have no such exception and cannot publish or self-approve. No second-reviewer gate is imposed on EinCloudy's own changes after this amendment.
 
 ## Removing the test store and updating the app
 
@@ -72,4 +72,4 @@ Do not call the result production-ready when a gate is incomplete. Report implem
 
 ## Calls proposed by the builder, not yet approved by the user
 
-English onboarding; schema-preserving formatting/templates rather than a new registry format; an initially empty production catalog; root-level production endpoints and a new production-history branch; initial one-key-per-role trust with explicit custody/backup gate; bounded transient fetch recovery; GitHub-issue health reporting; no automatic addition of future organization members; app changes kept local. Final approval should cover these calls and acknowledge the independent-review activation gate.
+Approved scope covers English onboarding; schema-preserving formatting/templates rather than a new registry format; an initially empty production catalog; root-level production endpoints and a new production-history branch; initial one-key-per-role trust with explicit custody/backup gate; bounded transient fetch recovery; GitHub-issue health reporting; no automatic addition of future organization members; app changes kept local. The explicit EinCloudy PR-review exception above supersedes the earlier independent-review activation gate.
