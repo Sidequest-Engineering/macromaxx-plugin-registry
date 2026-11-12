@@ -1,6 +1,14 @@
 # MacroMaxx static plugin registry
 
-Git/PR-based publisher and release review, exact-byte GitHub release import, content-addressed artifacts and TUF-authenticated distribution. No database or continuously running API is needed. No live deployment or real publisher enrollment has been performed by this implementation.
+Git/PR-based publisher and release review, exact-byte GitHub release import, content-addressed artifacts and TUF-authenticated distribution. No database or continuously running API is needed. A separate GitHub Pages **test channel** is configured; no production trust ceremony or real publisher enrollment has been performed.
+
+## GitHub Pages test channel
+
+Public site: https://sidequest-engineering.github.io/macromaxx-plugin-registry/
+
+Metadata and targets live under `test/metadata/` and `test/targets/`. See [test-store/README.md](test-store/README.md) for package provenance, key custody, history, renewal and revocation. The local app pins the public test root; its plugin installations/settings/caches are namespaced by root and endpoints, separate from production or earlier stores. The generated `test/client-config.json` is an example, **not** an independently authenticated trust bootstrap.
+
+The pinned Pages workflow separates read-only signing from keyless publication/deployment. It renews every six hours; monitor Actions because a failed/delayed renewal causes clients to fail closed after 24 hours. GitHub Pages is test hosting, not administrator-proof immutable storage. Production guidance below still applies separately.
 
 ## Publisher workflow
 
