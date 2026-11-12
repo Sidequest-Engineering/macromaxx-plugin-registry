@@ -1,99 +1,69 @@
-# MacroMaxx static plugin registry
+# MacroMaxx Plugin Registry
 
-Git/PR-based publisher and release review, exact-byte GitHub release import, content-addressed artifacts and TUF-authenticated distribution. No database or continuously running API is needed. A separate GitHub Pages **test channel** is configured; no production trust ceremony or real publisher enrollment has been performed.
+**Useful actions for your deck. Clear permissions. Releases you can trace.**
 
-## GitHub Pages test channel
+[![Registry checks](https://github.com/Sidequest-Engineering/macromaxx-plugin-registry/actions/workflows/validate.yml/badge.svg)](https://github.com/Sidequest-Engineering/macromaxx-plugin-registry/actions/workflows/validate.yml)
 
-Public site: https://sidequest-engineering.github.io/macromaxx-plugin-registry/
+[Browse the registry](https://sidequest-engineering.github.io/macromaxx-plugin-registry/) · [Publish your first plugin](CONTRIBUTING.md) · [Entry examples](examples/) · [Security](SECURITY.md)
 
-Metadata and targets live under `test/metadata/` and `test/targets/`. See [test-store/README.md](test-store/README.md) for package provenance, key custody, history, renewal and revocation. The local app pins the public test root; its plugin installations/settings/caches are namespaced by root and endpoints, separate from production or earlier stores. The generated `test/client-config.json` is an example, **not** an independently authenticated trust bootstrap.
+This repository is the review and publication home for MacroMaxx plugins. Publishers submit versioned packages through pull requests; organization maintainers review ownership, code, exact package bytes and permissions before publication. The app verifies signed metadata and SHA-256 hashes against an independently pinned root.
 
-The pinned Pages workflow separates read-only signing from keyless publication/deployment. It renews every six hours; monitor Actions because a failed/delayed renewal causes clients to fail closed after 24 hours. GitHub Pages is test hosting, not administrator-proof immutable storage. Production guidance below still applies separately.
+**Production activation is guarded.** The former demo is not a production trust authority. Production starts with an empty catalog and independent keys; signing stays disabled until the operator confirms root-key custody and recovery backup. See [operations](docs/OPERATIONS.md) for live readiness checks and limits. Example entries are documentation, never fabricated listings.
 
-## Publisher workflow
+## Choose your next step
 
-1. Copy the example; use your own `publisher--plugin` ID. Enroll the publisher's GitHub account through a reviewed PR; maintainers verify account/repository control out of band.
-2. Commit code and lockfile, typecheck/test and build a versioned `.mmxp` file.
-3. Tag the reviewed source commit, create a GitHub Release and attach that exact file. Never use `latest` in registry requests.
-4. Generate a proposed release descriptor:
+| You want to… | Start here |
+| --- | --- |
+| Build and submit a plugin | [Contributor guide](CONTRIBUTING.md) |
+| Understand an entry | [Formatted examples](examples/) |
+| Review a submission | [Maintainer checklist](docs/REVIEWING.md) |
+| Report a vulnerability | [Security policy](SECURITY.md) |
+| Operate, revoke or recover the registry | [Operations runbook](docs/OPERATIONS.md) |
+| Prepare the production signing identity | [Key custody](docs/KEY_CUSTODY.md) |
 
-   ```sh
-   node src/cli.js request ../your-plugin/dist/plugin-1.0.0.mmxp
-   ```
+## Your first submission
 
-5. Add the descriptor to `registry.json` and its pinned source in `sources/<sha256>.json`. Open a PR. Publishers do not get signing/storage access.
-6. Maintainers review source, dependency changes, artifact bytes, permissions and platform claims. Automated validation is **not** a malware scanner or code audit. The source commit is review metadata; reproducible source/artifact correspondence still requires independently rebuilding and comparing outputs.
-7. Import exact bytes; approve/sign only that hash. Changed upstream assets fail hash/length checks. Fixes always need a new plugin version.
-
-## Local validation/import
+1. **Build:** use the MacroMaxx SDK, declare focused actions and only the permissions they need.
+2. **Release:** tag a reviewed source commit and attach an exact `.mmxp` file to a versioned GitHub Release.
+3. **Submit:** propose a publisher/release entry and pinned source descriptor in a PR. CI gives early feedback; maintainers make the release decision.
 
 ```sh
 npm ci --ignore-scripts
+node src/cli.js request /absolute/path/to/your-plugin-1.0.0.mmxp
+npm run validate
 npm test
-node src/cli.js validate registry.json previous-registry.json
-node src/cli.js fetch registry.json sources public
-# Alternatively import a locally reviewed package without executing it:
-node src/cli.js import registry.json ../your-plugin/dist/plugin-1.0.0.mmxp public
 ```
 
-An existing ID/version cannot change publisher, manifest, hash or byte length. Existing releases cannot disappear; mark them withdrawn/revoked. Revocation is permanent. Withdrawn versions are excluded from installation/execution in this conservative policy. Publisher identity changes need a separately reviewed administrative migration, not a routine release update.
+The descriptor command inspects bytes; it does not execute your plugin. Follow the [full submission steps](CONTRIBUTING.md) before opening the PR.
 
-The GitHub importer accepts public GitHub releases and restricted HTTPS GitHub/CDN redirects only, bounds downloaded bytes, and never evaluates package code. A Publisher can still publish malicious *new* versions; each version needs review and users must not equate a known publisher with trustworthy code.
+## Small, explicit entries
 
-For subsequent publications pass the authenticated previous publication and public root to `fetch` as its final two arguments. Already approved artifacts are verified/reused from that publication instead of fetched again from the developer. CI does this automatically; deletion or replacement of upstream assets cannot retroactively block retained packages. Back up the authoritative publication artifacts beyond GitHub's retention period.
+| File | What reviewers see |
+| --- | --- |
+| `registry.json` | Publisher identity; full manifest, permissions, version, hash, byte length and status |
+| `sources/<sha256>.json` | Exact repository, release tag, asset name and source commit |
+| `.github/CODEOWNERS` | The organization team responsible for reviewing all publication inputs/tooling |
 
-## First trust ceremony (operator only)
+Keep JSON readable: two-space indentation, one field per line and a final newline. Use [the real-schema examples](examples/) as a guide, not as live release data. Existing version/hash/manifest bindings cannot be rewritten; revocation is permanent.
 
-**Do not run init casually for a production registry.** Plan backup, custody and recovery first. This MVP bootstrap uses one key per role; use a documented multi-person root/targets threshold ceremony before wider distribution. The official TUF format/client supports thresholds; this CLI does not automate threshold key management.
+## How publication works
 
-```sh
-node src/cli.js init /absolute/private/location/outside-repo root.json
+```text
+Your PR → validation → Codeowner review → merge
+                                      ↓
+verified import → protected signing → retained history → GitHub Pages
 ```
 
-This writes separate Ed25519 root, targets, snapshot and timestamp private PEM files with mode 0600. Move `root.pem` offline immediately; never upload it to GitHub or R2. Back up keys encrypted and limit account access. `root.json` is public, should be reviewed/committed and pinned into the application build. Root expiry is one year; targets/snapshot seven days; timestamp/catalog one day. Refresh publication daily **before** expiry even if no plugin changed. All online roles must be available for this simple publication tool, increasing the impact of CI compromise; split custody/threshold signing is a future hardening requirement.
+`@Sidequest-Engineering/registry-maintainers` owns all paths, including workflows and CODEOWNERS itself. PR submission and passing CI remain mandatory. **Explicit owner exception:** EinCloudy may merge through the named PR-review exception without another person's review. GitHub does not permit literal own-PR approving reviews; this is a visible actor-based exception, not a fabricated approval. Native GitHub also lets that named actor override review on another author's PR. It cannot waive the separate no-bypass PR/CI rules. Ordinary contributors receive no publishing credentials or such exception.
 
-```sh
-node src/cli.js publish registry.json root.json /private/online-keys public 1
-```
+Production metadata and packages use the Pages project-root `metadata/` and `targets/` endpoints. Publication retains authenticated state on `production-publication`; the former `gh-pages` test branch is inactive audit history, not production input. Scheduled renewal every six hours does not approve new packages: it republishes protected-main registry contents with a new metadata version.
 
-The output has versioned metadata, hash-prefixed immutable targets and a timestamp commit point. `registry-state.json` is itself a signed TUF target. Keep it and all earlier metadata/objects between publications. Clean output directories for version 2+ require the prior authenticated publication directory as the final CLI argument. The tool verifies its signatures, metadata chain and state hash before enforcing immutable descriptors, permanent revocations and an increment of exactly one. Historical expiry does not erase history; it is authenticated audit input, not client update trust.
+## What verification does—and does not—mean
 
-Root rotation uses standard TUF dual-signing and sequential `<version>.root.json` files; perform it offline with audited TUF tooling and test an existing pinned-root client. The client supports the protocol; this CLI does **not** automate the ceremony or authenticate a previous publication signed under replaced role keys. Such a rotation needs an explicitly reviewed history migration; do not bypass it by resetting publication versions.
+- Signatures and hashes authenticate approved bytes; they are **not** a malware scanner or a promise that code is harmless.
+- Standard plugins run in the restricted QuickJS/WASM engine. Arbitrary shell, network, direct filesystem, native addons and privileged runtimes are not silently authorized.
+- Legacy local plugins remain a separate, trusted-code feature and are not sandboxed by this registry.
+- GitHub Pages is static hosting with size/rate/bandwidth limits, not administrator-proof immutable storage or an availability SLA. Expired metadata fails closed.
+- A production registry does not automatically code-sign the Electron app, add an independent daemon, or certify untested platforms.
 
-## GitHub controls
-
-`validate.yml` is unprivileged and compares mappings against the PR base. `prepare-publication.yml` separates unprivileged downloads from protected signing, and produces a signed publication artifact **without deploying it**. Before enabling:
-
-- Decide repository boundaries; templates assume this directory becomes the registry repository root.
-- Configure branch protection, required checks/reviews and CODEOWNERS covering registry, publishers, sources, workflows and tooling. Do not let a publisher self-approve.
-- Protect the `plugin-release` environment with independent required reviewers and main-only deployment policy.
-- Configure only TARGETS_PRIVATE_KEY, SNAPSHOT_PRIVATE_KEY, TIMESTAMP_PRIVATE_KEY in that environment. No root private key or hosting-administration credentials.
-- Add the reviewed public `root.json`. The workflow automatically restores the latest successful publication artifact from this workflow on main (not an operator-selected old run), and cryptographically verifies its state before signing. An absent previous run only permits metadata version 1. An expired/deleted prior artifact fails closed; retain/back up history before GitHub retention expires. The workflow prepares publications, not a live cloud deployment; deployment must not introduce an out-of-band alternate version history.
-- Actions are pinned to the v4 commit SHAs resolved from the official GitHub repositories during implementation. Review and maintain these pins; pinning prevents tag replacement, not malicious changes already present in a reviewed commit.
-
-Never use `pull_request_target` to execute publisher-controlled source with secrets. Protect SDK/runtime snapshots too. PR checks cannot replace branch/environment protection.
-
-## Hosting recommendation: Cloudflare R2
-
-Use a dedicated bucket/custom HTTPS domain with separate administrator and narrowly scoped upload credentials. Enable bucket locks on immutable `targets/` and versioned metadata prefixes (or separate immutable storage from mutable timestamp). R2 bucket locks can be removed by administrators: this is not administrator-proof WORM storage. TUF authenticates content independently. Store root/key backups separately.
-
-Deploy in order: **immutable targets → versioned root/targets/snapshot metadata → timestamp.json last**. Use create-only uploads/conditional writes for immutable keys and fail if an existing object differs. Never use a destructive bucket sync. Upload metadata with short/no-cache policy; use immutable caching for hash-addressed objects. Make deployment serialized and persist/verify metadata version/history. Metadata-only publications (including revoking the last plugin) carry an explicit transfer manifest, not a required package file. Configure the hosting tool yourself with credentials; this project deliberately does not deploy or assume your cloud account.
-
-App configuration (`macromaxx/electron/plugin-store-config.json`):
-
-```json
-{
-  "enabled": true,
-  "metadataUrl": "https://plugins.your-domain.example/metadata/",
-  "targetsUrl": "https://plugins.your-domain.example/targets/",
-  "root": { "signed": "REPLACE_WITH_THE_COMPLETE_REVIEWED_ROOT_JSON", "signatures": [] }
-}
-```
-
-Replace `root` with the **entire** real `root.json`, not the placeholder above. An invalid/missing configuration fails closed. Renderer IPC cannot change registry URLs or trust roots. `MACROMAXX_STORE_CONFIG=/path/config.json` is accepted only in unpackaged development; `allowLoopback: true` only permits loopback HTTP there.
-
-R2 minimizes server maintenance and egress costs, not all costs: storage, requests, CI, domain and account terms still apply. A stronger retention provider is an alternative if administrator-proof retention is required. A VPS adds patching/backups/availability work without solving signing or review.
-
-## Incident response
-
-Set the affected release to `revoked`, retain its immutable descriptor, publish newer signed metadata and invalidate mutable-metadata CDN caches. Clients disable/terminate it on refresh; expiry bounds stale trust but cannot instantaneously notify offline clients. Do not rewrite packages or roll back to revoked versions. Investigate publisher/CI/key compromise before accepting a replacement version. Rotate online signing roles through a properly cross-signed root when needed. Root-key compromise may require an independently authenticated app update/trust reset. Plugin uninstall cannot undo arbitrary effects of a previously privileged legacy plugin.
+See [SECURITY](SECURITY.md) for the trust boundary and [OPERATIONS](docs/OPERATIONS.md) for failure recovery.

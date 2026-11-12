@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "test": "node --test test/*.test.js",
-    "validate": "node src/cli.js validate"
+    "validate": "node src/check-inputs.js"
   },
   "dependencies": {
     "@macromaxx/plugin-sdk": "file:vendor/macromaxx-plugin-sdk-0.1.0.tgz",
