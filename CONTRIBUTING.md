@@ -4,10 +4,38 @@ Welcome! A good plugin solves one clear problem, asks for understandable permiss
 
 ## Before you start
 
+Use a current supported Node.js release (22.22.2+, 24.15.0+, or newer). You do not need access to a private organization repository to get the SDK: this registry includes a public, versioned SDK snapshot.
+
+In your plugin project:
+
+```sh
+npm init -y
+mkdir -p vendor
+curl --fail --location --proto '=https' --proto-redir '=https' \
+  --output vendor/macromaxx-plugin-sdk-0.1.0.tgz \
+  https://raw.githubusercontent.com/Sidequest-Engineering/macromaxx-plugin-registry/4a6a7af1ab927b5b30285f82c4a27c53c4201aaa/vendor/macromaxx-plugin-sdk-0.1.0.tgz
+```
+
+Verify the downloaded SDK before installing it. SHA-256 for this snapshot:
+
+```text
+23428d45b39603b74e0837091b68745e739ae075a6ba2895455c3b3d54f096e9
+```
+
+Then install the verified **local** archive:
+
+```sh
+npm install --save-dev --ignore-scripts ./vendor/macromaxx-plugin-sdk-0.1.0.tgz
+```
+
+This pins the existing public SDK snapshot to a full immutable registry revision and works with npm policies that disable remote-tarball installation; do not disable those policies. Keep the verified archive and lockfile for reproducible builds. npm publication under the package name is not assumed. Review SDK changes before updating the dependency pin.
+
 - Use your own `publisher--plugin` identifier; do not submit the internal demo or copy the documentation fixture as a real release.
 - Use the MacroMaxx plugin SDK and supported standard runtime. Declare all actions, supported platforms, app compatibility and required permissions in the manifest.
 - Settings are local, unencrypted, non-secret JSON. Do not put credentials in plugin settings, packages, PRs or issue reports.
 - Keep code and a lockfile in a reviewable repository. Test/typecheck and independently rebuild the release package before submitting it.
+
+The SDK command reads `manifest.json` and `src/index.ts` in your project. Its installed README and `src/index.d.ts` document `definePlugin`, action hooks and supported host APIs. Once those files are ready, build with `npx --no-install macromaxx-plugin build dist/your-plugin-1.0.0.mmxp`. Keep the resulting lockfile. SDK download does not enroll a publisher or authorize a registry release; the review steps below still apply.
 
 ## 1. Enroll your publisher
 

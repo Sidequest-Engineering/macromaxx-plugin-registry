@@ -7,6 +7,8 @@
 **Tech Stack:** Existing Node/TUF tools, GitHub REST/Actions/Pages, existing Electron adapter.
 **Spec:** `docs/superpowers/specs/2026-11-12-production-pages-store-design.md` (approved; amended with explicit self-approval request).
 
+**Execution status:** implementation/local verification tasks 1–5 completed, including one independent review and a RED→GREEN fix pass. Task 6 operational cutover is in progress. Signed activation remains blocked on real operator root custody/backup confirmation and provisioning/testing the isolated governance-audit App; no production private key has been uploaded and no custody flag has been fabricated.
+
 ## Global Constraints
 - No test-to-production key promotion; no root private key in CI, logs or Git.
 - Preserve signatures, hashes, immutable descriptors, permanent revocations and signed history. No force pushes.
@@ -76,3 +78,10 @@
 - User amendment: "Abfahrt. EinCloudy soll auch self-approven können" explicitly replaces the second-reviewer activation gate. Native own-PR approving reviews remain impossible; implement a named PR-only review exception with no-bypass CI/PR requirements.
 - Authorized team setup already verified: registry-maintainers, closed/visible, EinCloudy member, explicit push permission. No other org members currently returned by GitHub.
 - Pre-flight: task 1 supplies governance preflight to task 5; tasks 2/3 supply production assembly/import to task 5; task 4 changes only the local runtime/app transport; task 6 consumes protected main and operator custody confirmation. No conflicting interfaces; keep old test history separate from new production history.
+- Completed code checkpoints: 5cd2cfb governance, 67a86fb production/history, 0b19901 onboarding, 1342d1d automation, 9dc517a review fixes and independent public root. Runtime local commits a2554fb/1c02e6a; local app remains uncommitted/unpushed with unrelated edits preserved.
+- Verification: registry32/32, runtime23/23, app197 pass/2 existing skips; Actions lint, formatting/build, Linux native/ASAR worker smoke and actual browser desktop/mobile checks pass. Public SDK onboarding was verified anonymously from a pinned existing public archive, fresh-project local install and actual plugin build/decode; remote npm-tarball policy stayed enabled.
+- Explicit review exception implemented through named User57414887 PR-only rule27158571; independent no-bypass PR/CI/nonFF/delete rule27158568 and history rule27158572 configured. Actual merge/CI/deployment evidence belongs to the operational cutover record, not these local test claims.
+- Production public-root custody fingerprint: b5aeb97545789a359f275d828d7c3cf4e1b926460c8b931f52f6f96c26ee8460 (use `node src/cli.js fingerprint root.json`, not the pretty file checksum). Private handoff directory is `$HOME/.local/share/macromaxx-store-production-keys/`, outside Git; offline storage/encrypted backup still requires operator action.
+- Ruling: re-fetch real history independently in signing, rather than trust importer-supplied audit bytes; cost is another fetch/temp copy. Retire legacy artifact-only publication workflow to avoid a second CI signing authority; manual operator CLI remains.
+- Ruling: bypass visibility needs a separate scoped administrative App audit job; never grant signing a write/admin token or persist the personal CLI token. Cost is explicit operator App setup and live credential verification before signed activation. Consumers bind immutable audit artifact ID, revision/run/attempt/root/history and15min validity. Deployment revalidates actual tar bytes/current history inside the deploy job; health compares authenticated live identity with authoritative history before closing incidents.
+- Remaining limits: no independent signing threshold, no OS-security-sandbox/daemon/app-code-signing claim, no Windows/macOS package or physical USB certification, and no external outage monitor provisioned. Pages limits and Actions outage domain remain disclosed.
