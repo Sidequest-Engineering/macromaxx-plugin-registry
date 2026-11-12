@@ -1,0 +1,10 @@
+node_modules/
+public/
+quarantine/
+*.pem
+*.key
+registry-state.json
+.env
+.env.*
+*.log
+.DS_Store
