@@ -49,6 +49,7 @@ export async function publishHistory({ siteDirectory, remote, previousCommit }) 
     git(['remote', 'add', 'origin', remote], work);
     const current = git(['ls-remote', '--heads', 'origin', 'refs/heads/' + HISTORY_BRANCH], work).toString().trim().split(/\s+/)[0] || null;
     if (current !== previousCommit) throw new Error('Publication history changed; refusing bootstrap/race.');
+    let expectedVersion = 1;
     if (current) {
       git(['fetch', '--no-tags', 'origin', 'refs/heads/' + HISTORY_BRANCH], work);
       if (git(['rev-parse', 'FETCH_HEAD'], work).toString().trim() !== current) throw new Error('Publication history race.');
@@ -56,6 +57,7 @@ export async function publishHistory({ siteDirectory, remote, previousCommit }) 
       const oldSite = path.join(work, 'old-site');
       await exportHistory({ repositoryDirectory: work, commit: current, outputDirectory: oldSite });
       const oldFiles = await staticFiles(oldSite);
+      expectedVersion = JSON.parse(oldFiles.get('registry-state.json')).version + 1;
       for (const [name, bytes] of oldFiles) {
         if (!files.has(name)) throw new Error('Publication removed retained history.');
         if (/^(metadata\/[0-9]+\.|targets\/)/.test(name) && !files.get(name).equals(bytes))
@@ -63,6 +65,8 @@ export async function publishHistory({ siteDirectory, remote, previousCommit }) 
       }
       await fs.rm(oldSite, { recursive: true });
     }
+    const candidate = JSON.parse(files.get('registry-state.json'));
+    if (!Number.isSafeInteger(candidate.version) || candidate.version !== expectedVersion) throw new Error('Publication history version must advance exactly once; rollback rejected.');
     for (const [name, bytes] of files) {
       await fs.mkdir(path.dirname(path.join(work, name)), { recursive: true });
       await fs.writeFile(path.join(work, name), bytes, { mode: 0o644 });

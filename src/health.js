@@ -4,6 +4,23 @@ import path from 'node:path';
 import { Updater, BaseFetcher } from 'tuf-js';
 import { DownloadHTTPError } from 'tuf-js/dist/error.js';
 import { validateCatalog } from '@macromaxx/plugin-sdk/contracts';
+import { canonicalize } from '@tufjs/canonical-json';
+import { sha256, verifyPublicationHistory } from './repository.js';
+import { assertLivePublication } from './release-gates.js';
+
+export function assessPublishedHealth({ live, publication, now }) {
+  try { assertLivePublication(live, publication); return assessHealth({ configured: true, validUntil: live.validUntil, now }); }
+  catch (error) { return assessHealth({ configured: true, error: error.message, now }); }
+}
+
+export async function publicationIdentity(directory, root) {
+  const state = await verifyPublicationHistory(directory, root);
+  const timestamp = JSON.parse(await fs.readFile(path.join(directory, 'metadata/timestamp.json')));
+  const targets = JSON.parse(await fs.readFile(path.join(directory, `metadata/${state.version}.targets.json`)));
+  const catalog = targets.signed.targets['catalog.json'];
+  if (!catalog?.hashes?.sha256) throw new Error('Publication has no authenticated catalog identity.');
+  return { metadataVersion: state.version, timestampSha256: sha256(Buffer.from(canonicalize(timestamp))), catalogSha256: catalog.hashes.sha256 };
+}
 
 export function assessHealth({ configured, validUntil, error, now = Date.now() }) {
   if (!configured) return { kind: 'pending', message: 'Production activation is pending operator key custody/deployment.' };
@@ -50,6 +67,7 @@ export async function verifyLiveRegistry({ root, baseUrl, allowLoopback = false 
     const expirations = await Promise.all(['root', 'timestamp', 'snapshot', 'targets'].map(async role => Date.parse(JSON.parse(await fs.readFile(path.join(directory, role + '.json'))).signed.expires)));
     const validUntil = Math.min(Date.parse(catalog.expires), ...expirations);
     if (!Number.isFinite(validUntil) || validUntil <= Date.now()) throw new Error('Live registry trust expired.');
-    return { validUntil, releases: catalog.releases.length };
+    const timestamp = JSON.parse(await fs.readFile(path.join(directory, 'timestamp.json')));
+    return { validUntil, releases: catalog.releases.length, metadataVersion: timestamp.signed.version, timestampSha256: sha256(Buffer.from(canonicalize(timestamp))), catalogSha256: info.hashes.sha256 };
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 }

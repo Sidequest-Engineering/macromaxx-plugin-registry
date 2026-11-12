@@ -74,6 +74,9 @@ test('history publication is fast-forward only and rejects stale bootstrap/renew
   const next = path.join(f.directory, 'next'); await preparePagesSite({ ...f.options, previousSiteDirectory: exported, outputDirectory: next });
   const second = await publishHistory({ siteDirectory: next, remote, previousCommit: first });
   assert.notEqual(first, second);
+  await fs.copyFile(path.join(f.options.outputDirectory, 'metadata/timestamp.json'), path.join(next, 'metadata/timestamp.json'));
+  await fs.copyFile(path.join(f.options.outputDirectory, 'registry-state.json'), path.join(next, 'registry-state.json'));
+  await assert.rejects(publishHistory({ siteDirectory: next, remote, previousCommit: second }), /version|rollback|history/i);
   await assert.rejects(publishHistory({ siteDirectory: next, remote, previousCommit: first }), /history|changed|race/i);
   git(['fetch', 'origin', 'production-publication'], checkout);
   git(['checkout', '-B', 'production-publication', 'FETCH_HEAD'], checkout);

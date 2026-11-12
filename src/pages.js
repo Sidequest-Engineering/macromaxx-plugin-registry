@@ -10,6 +10,7 @@ import { renderLanding } from './landing.js';
 const readJSON = async file => JSON.parse(await fs.readFile(file, 'utf8'));
 const allowedFile = /^(?:\.nojekyll|index\.html|client-config\.json|registry-state\.json|metadata\/(?:[1-9][0-9]*\.(?:root|targets|snapshot)\.json|timestamp\.json)|targets\/(?:[a-f0-9]{64}\.(?:catalog|registry-state)\.json|artifacts\/sha256\/[a-f0-9]{64}\.[a-f0-9]{64}\.mmxp))$/;
 const allowedDirectory = /^(?:metadata|targets|targets\/artifacts|targets\/artifacts\/sha256)$/;
+export const allowedStaticPath = (name, directory) => directory ? name === '' || allowedDirectory.test(name) : allowedFile.test(name);
 
 // A previous deployment is untrusted input. Never recursively copy arbitrary files.
 export async function staticFiles(directory) {

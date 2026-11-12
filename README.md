@@ -8,7 +8,7 @@
 
 This repository is the review and publication home for MacroMaxx plugins. Publishers submit versioned packages through pull requests; organization maintainers review ownership, code, exact package bytes and permissions before publication. The app verifies signed metadata and SHA-256 hashes against an independently pinned root.
 
-**Production activation is guarded.** The former demo is not a production trust authority. Production starts with an empty catalog and independent keys; signing stays disabled until the operator confirms root-key custody and recovery backup. See [operations](docs/OPERATIONS.md) for live readiness checks and limits. Example entries are documentation, never fabricated listings.
+**Production activation is guarded.** The former demo is not a production trust authority. Production starts with an empty catalog and independent keys; signing stays disabled until the operator confirms root-key custody/recovery backup and configures the isolated governance auditor. See [operations](docs/OPERATIONS.md) for live readiness checks and limits. Example entries are documentation, never fabricated listings.
 
 ## Choose your next step
 

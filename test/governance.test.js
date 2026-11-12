@@ -32,6 +32,8 @@ test('accepts actual protected main with a PR-only named review exception', () =
 
 test('rejects bypassed CI, missing PR requirement and broadened review privileges', () => {
   const mutations = [
+    f => { delete f.rules[0].bypass_actors; },
+    f => { delete f.rules[2].bypass_actors; },
     f => { f.rules[0].bypass_actors.push({ actor_type: 'OrganizationAdmin', bypass_mode: 'always' }); },
     f => { f.rules[0].rules = f.rules[0].rules.filter(r => r.type !== 'pull_request'); },
     f => { f.rules[0].rules[1].parameters.required_status_checks = []; },

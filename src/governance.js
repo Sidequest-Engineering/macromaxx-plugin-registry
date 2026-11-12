@@ -46,7 +46,8 @@ export function verifyGovernance({ rules, codeowners, selfApproverId = SELF_APPR
     const actual = matches[0];
     if (actual.target !== 'branch' || actual.enforcement !== 'active' || !isDeepStrictEqual(actual.conditions?.ref_name, expected.conditions.ref_name))
       fail('Protection rule inactive or scoped incorrectly: ' + expected.name);
-    const actors = actual.bypass_actors || [];
+    if (!Array.isArray(actual.bypass_actors)) fail('Bypass policy hidden by GitHub; a privileged audit receipt is required.');
+    const actors = actual.bypass_actors;
     if (actors.length !== expected.bypass_actors.length || !actors.every((actor, i) => contains(actor, expected.bypass_actors[i])))
       fail('Unexpected bypass policy: ' + expected.name);
     for (const rule of expected.rules) {

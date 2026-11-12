@@ -3,15 +3,16 @@ import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { sha256, validateRegistry } from './repository.js';
 import { readFormattedJSON } from './check-inputs.js';
-import { verifyGovernance, REGISTRY_REPOSITORY } from './governance.js';
+import { REGISTRY_REPOSITORY } from './governance.js';
+import { rootFingerprint, verifyAuditReceipt } from './release-gates.js';
 import { staticFiles } from './pages.js';
 
-export const rootFingerprint = root => sha256(Buffer.from(JSON.stringify(root)));
+export { rootFingerprint } from './release-gates.js';
 
-export function assertSigningPreflight({ repository, ref, root, custodySha256, governance }) {
+export function assertSigningPreflight({ repository, ref, root, custodySha256, audit, revision, runId, runAttempt, now }) {
   if (repository !== REGISTRY_REPOSITORY || ref !== 'refs/heads/main') throw new Error('Production signing requires the canonical repository protected main.');
   if (!custodySha256 || custodySha256 !== rootFingerprint(root)) throw new Error('Operator-confirmed offline root custody/backup is required for this exact root.');
-  verifyGovernance(governance);
+  verifyAuditReceipt(audit, { repository, revision, runId, runAttempt, rootSha256: rootFingerprint(root), now });
   return true;
 }
 

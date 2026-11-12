@@ -8,3 +8,14 @@ registry-state.json
 .env.*
 *.log
 .DS_Store
+.playwright-mcp/
+publication-bundle/
+pages-bundle/
+import-work/
+signing-history/
+audit-receipt/
+governance-proof/
+deployment-receipt/
+deployment-history/
+deployment-verified/
+pages-artifact/

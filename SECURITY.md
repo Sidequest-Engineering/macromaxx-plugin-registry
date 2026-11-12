@@ -16,7 +16,9 @@ Do not publish credentials, private keys or exploit packages in issues/PRs. Use 
 
 The root private key stays outside GitHub and needs operator-confirmed offline custody plus encrypted backup before activation. Initial tooling uses one key per role, **not** a multi-person TUF threshold. Codeowner review is GitHub governance, not an independent cryptographic quorum.
 
-Online keys are separate targets/snapshot/timestamp roles in the protected production signing environment. No root key, publisher credentials or host-administration credentials belong in CI. PR jobs do not receive signing secrets.
+Online keys are separate targets/snapshot/timestamp roles in the protected production signing environment. No root key, publisher credentials or external hosting-administrator credentials belong in signing/PR jobs. PR jobs do not receive signing secrets.
+
+A separate protected governance-audit job needs a repository-scoped GitHub App with Administration write to inspect bypass actors (GitHub hides them from read-only callers), plus Contents read. That administrative credential is never available to the signing job; consumers use a short-lived, revision-bound immutable-ID receipt. No dependency execution/signing keys run in the audit job. This separation reduces combined privilege but does not make a compromised auditor harmless; see [App custody](docs/KEY_CUSTODY.md).
 
 All paths have organization Codeowners. EinCloudy's explicit PR-only review exception permits self-merge, not a fabricated own-PR review; native GitHub can also apply the same actor exception to others' PRs. Separate no-bypass PR/CI rules remain enforced. A compromised maintainer with that authority is a publishing trust compromise.
 

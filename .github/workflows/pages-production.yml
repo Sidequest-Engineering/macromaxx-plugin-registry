@@ -36,11 +36,47 @@ jobs:
         run: node src/pages-ci.js inspect
         env:
           PRODUCTION_ROOT_CUSTODY_SHA256: ${{ vars.PRODUCTION_ROOT_CUSTODY_SHA256 }}
-  import:
+  audit:
     needs: inspect
     if: needs.inspect.outputs.active == 'true'
     runs-on: ubuntu-24.04
+    environment: production-governance
+    outputs:
+      artifact_id: ${{ steps.receipt.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.22.2'
+      - id: audit-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.GOVERNANCE_APP_ID }}
+          private-key: ${{ secrets.GOVERNANCE_APP_PRIVATE_KEY }}
+          owner: Sidequest-Engineering
+          repositories: macromaxx-plugin-registry
+          permission-administration: write
+          permission-contents: read
+      # No npm/dependency execution and no signing keys in this privileged job.
+      - run: node src/governance-audit.js
+        env:
+          GH_TOKEN: ${{ steps.audit-token.outputs.token }}
+          PRODUCTION_ROOT_CUSTODY_SHA256: ${{ vars.PRODUCTION_ROOT_CUSTODY_SHA256 }}
+      - id: receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-governance-audit
+          path: governance-proof/receipt.json
+          retention-days: 2
+  import:
+    needs: [inspect, audit]
+    if: needs.inspect.outputs.active == 'true'
+    runs-on: ubuntu-24.04
     environment: production-store-signing
+    outputs:
+      artifact_id: ${{ steps.input.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -51,21 +87,29 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm test && npm run validate
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.audit.outputs.artifact_id }}
+          merge-multiple: true
+          path: audit-receipt/
       - run: node src/pages-ci.js import
         env:
           GH_TOKEN: ${{ github.token }}
           PRODUCTION_ROOT_CUSTODY_SHA256: ${{ vars.PRODUCTION_ROOT_CUSTODY_SHA256 }}
           ALLOW_BOOTSTRAP: ${{ github.event_name == 'workflow_dispatch' && inputs.bootstrap }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - id: input
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: reviewed-publication-input
           path: publication-bundle/
           include-hidden-files: true
           retention-days: 2
   sign:
-    needs: import
+    needs: [import, audit]
     runs-on: ubuntu-24.04
     environment: production-store-signing
+    outputs:
+      artifact_id: ${{ steps.signed.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -77,8 +121,14 @@ jobs:
       - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: reviewed-publication-input
+          artifact-ids: ${{ needs.import.outputs.artifact_id }}
+          merge-multiple: true
           path: publication-bundle/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.audit.outputs.artifact_id }}
+          merge-multiple: true
+          path: audit-receipt/
       - run: node src/pages-ci.js sign
         env:
           GH_TOKEN: ${{ github.token }}
@@ -87,7 +137,8 @@ jobs:
           PRODUCTION_TARGETS_KEY: ${{ secrets.PRODUCTION_TARGETS_KEY }}
           PRODUCTION_SNAPSHOT_KEY: ${{ secrets.PRODUCTION_SNAPSHOT_KEY }}
           PRODUCTION_TIMESTAMP_KEY: ${{ secrets.PRODUCTION_TIMESTAMP_KEY }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - id: signed
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: signed-production-site
           path: pages-bundle/
@@ -98,6 +149,9 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    outputs:
+      receipt_id: ${{ steps.receipt.outputs.artifact-id }}
+      pages_id: ${{ steps.pages.outputs.artifact_id }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -109,18 +163,30 @@ jobs:
       - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: signed-production-site
+          artifact-ids: ${{ needs.sign.outputs.artifact_id }}
+          merge-multiple: true
           path: pages-bundle/
       - run: node src/pages-ci.js publish
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+      - id: receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
+          name: production-deployment-receipt
+          path: pages-bundle/deployment-receipt.json
+          retention-days: 2
+      - id: pages
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          name: production-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: pages-bundle/site
   landing:
     needs: inspect
     if: needs.inspect.outputs.active == 'false'
     runs-on: ubuntu-24.04
+    outputs:
+      receipt_id: ${{ steps.receipt.outputs.artifact-id }}
+      pages_id: ${{ steps.pages.outputs.artifact_id }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -131,19 +197,54 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: node src/pages-ci.js landing
-      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+      - id: receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
+          name: production-deployment-receipt
+          path: pages-bundle/deployment-receipt.json
+          retention-days: 2
+      - id: pages
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          name: production-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: pages-bundle/site
   deploy:
     needs: [inspect, publish, landing]
     if: always() && needs.inspect.result == 'success' && (needs.publish.result == 'success' || needs.landing.result == 'success')
     runs-on: ubuntu-24.04
     permissions:
+      contents: read
+      actions: read
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.publish.outputs.receipt_id || needs.landing.outputs.receipt_id }}
+          merge-multiple: true
+          path: deployment-receipt/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.publish.outputs.pages_id || needs.landing.outputs.pages_id }}
+          merge-multiple: true
+          path: pages-artifact/
+      - run: node src/pages-ci.js deploy-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCTION_ROOT_CUSTODY_SHA256: ${{ vars.PRODUCTION_ROOT_CUSTODY_SHA256 }}
+          PAGES_ARTIFACT_ID: ${{ needs.publish.outputs.pages_id || needs.landing.outputs.pages_id }}
       - id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        with:
+          artifact_name: production-pages-${{ github.run_id }}-${{ github.run_attempt }}

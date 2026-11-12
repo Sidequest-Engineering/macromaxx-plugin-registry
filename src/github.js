@@ -17,9 +17,18 @@ export async function historyCommit() {
   return value.object.sha;
 }
 
-export async function liveGovernance() {
+export async function currentMainCommit() {
   const main = await github(repoPath + '/git/ref/heads/main');
-  if (main.object?.sha !== process.env.GITHUB_SHA) throw new Error('Protected main moved; refusing a stale publication.');
+  if (!/^[a-f0-9]{40}$/.test(main.object?.sha)) throw new Error('Invalid main revision.');
+  return main.object.sha;
+}
+
+export async function assertCurrentMain() {
+  if (await currentMainCommit() !== process.env.GITHUB_SHA) throw new Error('Protected main moved; refusing a stale publication/deployment.');
+}
+
+export async function liveGovernance() {
+  await assertCurrentMain();
   const account = await github('/users/EinCloudy');
   if (account.id !== SELF_APPROVER_ID) throw new Error('Named self-approver identity changed.');
   const summaries = await github(repoPath + '/rulesets?includes_parents=true&per_page=100');
