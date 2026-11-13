@@ -10,6 +10,7 @@ import {
 } from './repository.js';
 import { decodePackage } from '@macromaxx/plugin-sdk/contracts';
 import { fetchReviewedReleases } from './source.js';
+import { rootFingerprint } from './release-gates.js';
 
 const read = async (file) => JSON.parse(await fs.readFile(file, 'utf8'));
 try {
@@ -40,6 +41,9 @@ try {
     const [registryFile, sourceDirectory, output, previousDirectory, rootFile] = args;
     await fetchReviewedReleases(await read(registryFile), sourceDirectory, output, previousDirectory, previousDirectory ? await read(rootFile) : undefined);
     console.log('Fetched and verified exact reviewed release assets.');
+  } else if (command === 'fingerprint') {
+    if (!args[0]) throw new Error('Usage: fingerprint <public-root.json>');
+    console.log(rootFingerprint(await read(args[0])));
   } else if (command === 'init') {
     const [keyDirectory, rootFile] = args;
     if (
@@ -55,7 +59,7 @@ try {
     await fs.mkdir(keyDirectory, { recursive: true, mode: 0o700 });
     for (const [role, key] of Object.entries(trust.keys))
       await fs.writeFile(path.join(keyDirectory, role + '.pem'), key, { flag: 'wx', mode: 0o600 });
-    await fs.writeFile(rootFile, JSON.stringify(trust.root, null, 2), { flag: 'wx' });
+    await fs.writeFile(rootFile, JSON.stringify(trust.root, null, 2) + '\n', { flag: 'wx' });
     console.log('Created four separate role keys. Move root.pem OFFLINE; never put it in CI.');
   } else if (command === 'publish') {
     const [registryFile, rootFile, keyDirectory, directory, version, previousDirectory] = args;

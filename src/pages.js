@@ -3,11 +3,14 @@ import path from 'node:path';
 import os from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
 import { Metadata } from '@tufjs/models';
+import { Readable } from 'node:stream';
 import { importPackage, publishRepository, verifyPublicationHistory, sha256, validateRegistry } from './repository.js';
+import { renderLanding } from './landing.js';
 
 const readJSON = async file => JSON.parse(await fs.readFile(file, 'utf8'));
-const allowedFile = /^(?:\.nojekyll|index\.html|test\/(?:client-config\.json|registry-state\.json|metadata\/(?:[1-9][0-9]*\.(?:root|targets|snapshot)\.json|timestamp\.json)|targets\/(?:[a-f0-9]{64}\.(?:catalog|registry-state)\.json|artifacts\/sha256\/[a-f0-9]{64}\.[a-f0-9]{64}\.mmxp)))$/;
-const allowedDirectory = /^(?:test|test\/metadata|test\/targets|test\/targets\/artifacts|test\/targets\/artifacts\/sha256)$/;
+const allowedFile = /^(?:\.nojekyll|index\.html|client-config\.json|registry-state\.json|metadata\/(?:[1-9][0-9]*\.(?:root|targets|snapshot)\.json|timestamp\.json)|targets\/(?:[a-f0-9]{64}\.(?:catalog|registry-state)\.json|artifacts\/sha256\/[a-f0-9]{64}\.[a-f0-9]{64}\.mmxp))$/;
+const allowedDirectory = /^(?:metadata|targets|targets\/artifacts|targets\/artifacts\/sha256)$/;
+export const allowedStaticPath = (name, directory) => directory ? name === '' || allowedDirectory.test(name) : allowedFile.test(name);
 
 // A previous deployment is untrusted input. Never recursively copy arbitrary files.
 export async function staticFiles(directory) {
@@ -27,7 +30,7 @@ export async function staticFiles(directory) {
         throw new Error('Pages site exceeds file/size quota.');
       const bytes = await fs.readFile(full);
       // Content-addressed objects must match their names even when no longer current.
-      if (relative.startsWith('test/targets/') && sha256(bytes) !== path.basename(relative).split('.')[0])
+      if (relative.startsWith('targets/') && sha256(bytes) !== path.basename(relative).split('.')[0])
         throw new Error('Retained target hash mismatch.');
       files.set(relative, bytes);
     }
@@ -46,22 +49,32 @@ export async function preparePagesSite({ inputDirectory, outputDirectory, previo
   let version = 1;
   const retained = previousSiteDirectory ? await staticFiles(previousSiteDirectory) : new Map();
   if (previousSiteDirectory) {
-    const previous = await verifyPublicationHistory(path.join(previousSiteDirectory, 'test'), root);
+    const previous = await verifyPublicationHistory(previousSiteDirectory, root);
     version = previous.version + 1;
-    if (!isDeepStrictEqual(JSON.parse(retained.get(`test/metadata/${root.signed.version}.root.json`)), root))
+    if (!isDeepStrictEqual(JSON.parse(retained.get(`metadata/${root.signed.version}.root.json`)), root))
       throw new Error('Retained root differs from pinned root.');
     const trustedRoot = Metadata.fromJSON('root', root);
-    for (const [name, bytes] of retained) {
-      const match = /^test\/metadata\/([1-9][0-9]*)\.(targets|snapshot)\.json$/.exec(name);
-      if (!match) continue;
-      const metadata = Metadata.fromJSON(match[2], JSON.parse(bytes));
-      trustedRoot.verifyDelegate(match[2], metadata);
-      if (metadata.signed.version !== Number(match[1]) || metadata.signed.version >= version) throw new Error('Invalid retained metadata version.');
-      if (match[2] === 'snapshot') {
-        const targets = retained.get(`test/metadata/${match[1]}.targets.json`);
-        if (!targets) throw new Error('Historical targets missing.');
-        metadata.signed.meta['targets.json'].verify(targets);
+    for (let number = 1; number < version; number++) {
+      const snapshotBytes = retained.get(`metadata/${number}.snapshot.json`);
+      const targetsBytes = retained.get(`metadata/${number}.targets.json`);
+      if (!snapshotBytes || !targetsBytes) throw new Error('Historical metadata missing.');
+      const snapshot = Metadata.fromJSON('snapshot', JSON.parse(snapshotBytes));
+      const targets = Metadata.fromJSON('targets', JSON.parse(targetsBytes));
+      trustedRoot.verifyDelegate('snapshot', snapshot);
+      trustedRoot.verifyDelegate('targets', targets);
+      if (snapshot.signed.version !== number || targets.signed.version !== number) throw new Error('Invalid retained metadata version.');
+      snapshot.signed.meta['targets.json'].verify(targetsBytes);
+      for (const target of Object.values(targets.signed.targets)) {
+        const physical = 'targets/' + path.posix.join(path.posix.dirname(target.path), target.hashes.sha256 + '.' + path.posix.basename(target.path));
+        const bytes = retained.get(physical);
+        if (!bytes) throw new Error('Historical target missing.');
+        await target.verify(Readable.from(bytes));
       }
+    }
+    for (const name of retained.keys()) {
+      const match = /^metadata\/([1-9][0-9]*)\.(root|snapshot|targets)\.json$/.exec(name);
+      if (match && (match[2] === 'root' ? Number(match[1]) !== root.signed.version : Number(match[1]) >= version))
+        throw new Error('Unexpected retained metadata version/root.');
     }
   } else if (!allowBootstrap) throw new Error('Explicit bootstrap required when publication history is absent.');
   // Never overlay a partly built site, nor mutate the preceding publication.
@@ -80,7 +93,7 @@ export async function preparePagesSite({ inputDirectory, outputDirectory, previo
         await importPackage(work, release, await fs.readFile(file));
       }
     }
-    await publishRepository({ directory: work, previousDirectory: previousSiteDirectory && path.join(previousSiteDirectory, 'test'), registry, root, keys, version });
+    await publishRepository({ directory: work, previousDirectory: previousSiteDirectory, registry, root, keys, version });
     // The publisher's quarantine is intentionally excluded from the deployment.
     for (const folder of ['metadata', 'targets']) {
       async function copy(relative = '') {
@@ -89,9 +102,9 @@ export async function preparePagesSite({ inputDirectory, outputDirectory, previo
           const name = path.join(relative, entry.name);
           if (entry.isDirectory()) await copy(name);
           else {
-            const target = path.join(outputDirectory, 'test', folder, name);
+            const target = path.join(outputDirectory, folder, name);
             const bytes = await fs.readFile(path.join(work, folder, name));
-            const old = retained.get('test/' + folder + '/' + name);
+            const old = retained.get(folder + '/' + name);
             if (old && name !== 'timestamp.json' && !old.equals(bytes)) throw new Error('Immutable site file changed.');
             await fs.mkdir(path.dirname(target), { recursive: true });
             await fs.writeFile(target, bytes);
@@ -100,13 +113,13 @@ export async function preparePagesSite({ inputDirectory, outputDirectory, previo
       }
       await copy();
     }
-    await fs.copyFile(path.join(work, 'registry-state.json'), path.join(outputDirectory, 'test/registry-state.json'));
-    const config = { enabled: true, channel: 'test', metadataUrl: new URL('test/metadata/', base).href, targetsUrl: new URL('test/targets/', base).href, root };
-    await fs.writeFile(path.join(outputDirectory, 'test/client-config.json'), JSON.stringify(config, null, 2) + '\n');
+    await fs.copyFile(path.join(work, 'registry-state.json'), path.join(outputDirectory, 'registry-state.json'));
+    const config = { enabled: true, channel: 'production', metadataUrl: new URL('metadata/', base).href, targetsUrl: new URL('targets/', base).href, root };
+    await fs.writeFile(path.join(outputDirectory, 'client-config.json'), JSON.stringify(config, null, 2) + '\n');
     await fs.writeFile(path.join(outputDirectory, '.nojekyll'), '');
-    await fs.writeFile(path.join(outputDirectory, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><title>MacroMaxx test plugin store</title><h1>MacroMaxx test plugin store</h1><p>Signed test channel for the MacroMaxx app. Not a production trust authority.</p><p>Configure the app with its independently pinned public test root. Never trust a root merely because it was downloaded here.</p></html>\n');
+    await fs.writeFile(path.join(outputDirectory, 'index.html'), renderLanding(registry));
     await staticFiles(outputDirectory);
-    await verifyPublicationHistory(path.join(outputDirectory, 'test'), root);
+    await verifyPublicationHistory(outputDirectory, root);
     return { version };
   } finally { await fs.rm(work, { recursive: true, force: true }); }
 }

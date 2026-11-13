@@ -1,5 +1,7 @@
 # GitHub Pages test store implementation plan
 
+> Historical verification record only. Superseded by the production registry rollout; do not recreate or re-enable this test deployment.
+
 > Execute inline with executing-plans and TDD. User explicitly requested Pages deployment and local app connection.
 
 **Goal:** Real signed HTTPS discovery/install through Pages, without signature bypass or production trust contamination.

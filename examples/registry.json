@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "publishers": [
+    {
+      "id": "acme",
+      "name": "Acme plugins",
+      "github": "your-account"
+    }
+  ],
+  "releases": [
+    {
+      "manifest": {
+        "schemaVersion": 1,
+        "id": "acme--focus-timer",
+        "publisher": "acme",
+        "name": "Focus timer",
+        "description": "Show a local focus-session counter on an assigned key.",
+        "version": "1.0.0",
+        "apiVersion": 1,
+        "appVersion": ">=0.1.0 <1.0.0",
+        "runtime": "standard",
+        "platforms": [
+          "linux",
+          "win32",
+          "darwin"
+        ],
+        "permissions": [
+          "display:write",
+          "settings:read",
+          "settings:write"
+        ],
+        "actions": [
+          {
+            "id": "start",
+            "name": "Start a session"
+          }
+        ]
+      },
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "length": 1024,
+      "status": "approved"
+    }
+  ]
+}

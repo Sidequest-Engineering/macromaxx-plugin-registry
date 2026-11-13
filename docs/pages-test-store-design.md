@@ -1,5 +1,7 @@
 # GitHub Pages test store
 
+> Historical implementation record. Superseded by the production design and [operations runbook](OPERATIONS.md). The active test store/workflow is retired; this document is not setup guidance.
+
 User-approved scope: publish a signed test store through GitHub Pages and connect the local MacroMaxx app. Production registry remains independent. No production trust keys are generated; no existing workspace is replaced.
 
 ## Design
