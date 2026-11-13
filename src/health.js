@@ -52,9 +52,25 @@ export async function verifyLiveRegistry({ root, baseUrl, allowLoopback = false,
     async fetch(value) {
       const url = new URL(value);
       if (![metadata, targets].some(prefix => prefix.origin === url.origin && url.pathname.startsWith(prefix.pathname))) throw new Error('Unexpected registry health URL.');
-      const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15000) });
-      if (!response.ok || !response.body) { await response.body?.cancel(); throw new DownloadHTTPError(`Registry HTTP ${response.status} at ${url.pathname}`, response.status); }
-      return response.body;
+      const deadline = Date.now() + 30000;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(Math.max(1, Math.min(15000, deadline - Date.now()))) });
+        if (response.ok && response.body) return response.body;
+        await response.body?.cancel();
+        const error = new DownloadHTTPError(`Registry HTTP ${response.status} at ${url.pathname}`, response.status);
+        const retryAfter = response.headers.get('retry-after');
+        let delay = 100 * (attempt + 1);
+        if (retryAfter !== null) {
+          const numeric = /^\d+$/.test(retryAfter);
+          const seconds = numeric ? Number(retryAfter) : (Date.parse(retryAfter) - Date.now()) / 1000;
+          if (numeric && !Number.isFinite(seconds)) throw error;
+          if (Number.isFinite(seconds)) delay = Math.max(0, seconds * 1000);
+        }
+        // Match the app's bounded transport policy. 503 is never missing-root
+        // evidence; only tuf-js's expected 404 ends next-root discovery.
+        if (![429, 502, 503, 504].includes(response.status) || attempt === 2 || delay > 2000 || Date.now() + delay >= deadline) throw error;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
   }
   const directory = retainedDirectory || await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-health-client-'));
