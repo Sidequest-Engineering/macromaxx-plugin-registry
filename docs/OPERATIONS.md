@@ -2,6 +2,8 @@
 
 ## Readiness and hosting
 
+Use [the concrete go-live checklist](GO_LIVE.md) for remaining operator actions, `npm run store:doctor` for read-only prerequisite checks, and `store:probe` / `store:soak` on an independent host for signed monitoring and real48-hour evidence. Configuration readiness and delivery acceptance are separate.
+
 Production uses the Pages project site at `https://sidequest-engineering.github.io/macromaxx-plugin-registry/`, with `metadata/` and `targets/` endpoints. A documentation-only page can be deployed before activation, but it must say **activation pending** and must not pretend an unsigned/empty response is a verified catalog. The local app stays explicitly disabled until independently pinned production trust works.
 
 Activation requires effective protected-main/CODEOWNERS rules, the named review exception isolated from no-bypass CI/PR rules, operator-confirmed [offline root custody and encrypted recovery backup plus isolated governance auditor](KEY_CUSTODY.md), three online-role secrets, a successful signed bootstrap and normal renewal, and real HTTPS/client/app verification. Do not advertise all gates as passed merely because a workflow file exists.

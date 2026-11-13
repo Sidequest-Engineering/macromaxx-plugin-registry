@@ -19,6 +19,7 @@ This repository is the review and publication home for MacroMaxx plugins. Publis
 | Review a submission | [Maintainer checklist](docs/REVIEWING.md) |
 | Report a vulnerability | [Security policy](SECURITY.md) |
 | Operate, revoke or recover the registry | [Operations runbook](docs/OPERATIONS.md) |
+| Complete production activation and delivery acceptance | [Go-live checklist](docs/GO_LIVE.md) |
 | Prepare the production signing identity | [Key custody](docs/KEY_CUSTODY.md) |
 
 ## Your first submission
