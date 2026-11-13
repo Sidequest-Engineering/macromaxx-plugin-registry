@@ -6,7 +6,7 @@ import { publicationIdentity, verifyLiveRegistry, assessPublishedHealth } from '
 
 export const monitorAuthority = (root, baseUrl) => createHash('sha256').update(JSON.stringify([rootFingerprint(root), new URL(baseUrl).href])).digest('hex');
 
-export async function probeRegistry({ root, baseUrl, historyDirectory, directory, historyCommit, allowLoopback = false, beforeRecord }) {
+export async function probeRegistry({ root, baseUrl, historyDirectory, directory, historyCommit, allowLoopback = false, afterRecord, onFailure }) {
   await fs.mkdir(directory, { recursive: true, mode: 0o700 });
   const sample = { schemaVersion: 1, observedAt: Date.now(), authority: monitorAuthority(root, baseUrl), kind: 'error' };
   try {
@@ -20,12 +20,30 @@ export async function probeRegistry({ root, baseUrl, historyDirectory, directory
     Object.assign(sample, live, health, { historyCommit });
   } catch { sample.message = 'Registry history/deployment unavailable, expired, changed authority or failed signature/rollback verification.'; }
   sample.observedAt = Date.now();
-  try { await beforeRecord?.(sample); }
-  catch { sample.kind = 'error'; sample.message = 'External alert or heartbeat delivery failed; inspect the external receiver without exposing credentials.'; }
   const log = path.join(directory, 'samples.jsonl');
-  const existing = await fs.lstat(log).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
-  if (existing && (!existing.isFile() || existing.size > 16 * 1024 * 1024)) throw new Error('Monitoring evidence file invalid or full; archive it explicitly before continuing.');
-  await fs.appendFile(log, JSON.stringify(sample) + '\n', { mode: 0o600 });
+  const record = async () => {
+    try {
+      const line = JSON.stringify(sample) + '\n';
+      const existing = await fs.lstat(log).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
+      if (existing && (!existing.isFile() || existing.size + Buffer.byteLength(line) > 16 * 1024 * 1024)) throw new Error();
+      const handle = await fs.open(log, 'a', 0o600);
+      try { await handle.writeFile(line); await handle.sync(); } finally { await handle.close(); }
+    } catch {
+      sample.kind = 'error'; sample.message = 'Monitoring evidence could not be recorded; inspect file quota, permissions and storage. No healthy heartbeat was authorized.';
+      try { await onFailure?.(sample); } catch { /* Receiver failures never authorize a heartbeat. */ }
+      throw new Error('Monitoring evidence persistence failed; inspect file quota, permissions and storage.');
+    }
+  };
+  // A healthy heartbeat is authorized only after the observation is durably
+  // recorded. A failed delivery is then recorded as the latest failing sample.
+  await record();
+  try { await afterRecord?.(sample); }
+  catch {
+    sample.kind = 'error'; sample.message = 'External alert or heartbeat delivery failed; inspect the external receiver without exposing credentials.';
+    sample.observedAt = Date.now();
+    await record();
+    try { await onFailure?.(sample); } catch { /* The failing sample remains final. */ }
+  }
   return sample;
 }
 

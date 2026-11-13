@@ -64,7 +64,20 @@ test('external probe authenticates real deployed bytes against current history b
   assert.equal((await probeRegistry(options)).kind, 'error');
   served = repository;
   assert.equal((await probeRegistry(options)).metadataVersion, 2);
-  assert.equal((await probeRegistry({ ...options, beforeRecord() { throw new Error('receiver unavailable'); } })).kind, 'error');
+  assert.equal((await probeRegistry({ ...options, afterRecord() { throw new Error('receiver unavailable'); } })).kind, 'error');
+  // A dead evidence sink must be detected before any callback can send a healthy heartbeat.
+  await fs.truncate(path.join(options.directory, 'samples.jsonl'), 16 * 1024 * 1024 + 1);
+  let callbackHealthy = false, persistenceFailure;
+  await assert.rejects(probeRegistry({ ...options, afterRecord(sample) { callbackHealthy ||= sample.kind === 'healthy'; }, onFailure(sample) { persistenceFailure = sample; } }), /evidence|quota|record/i);
+  assert.equal(callbackHealthy, false); assert.equal(persistenceFailure.kind, 'error');
+  await fs.truncate(path.join(options.directory, 'samples.jsonl'), 0); await fs.chmod(path.join(options.directory, 'samples.jsonl'), 0o400);
+  if (process.getuid?.() !== 0) await assert.rejects(probeRegistry({ ...options, afterRecord(sample) { callbackHealthy ||= sample.kind === 'healthy'; }, onFailure(sample) { persistenceFailure = sample; } }), /evidence|quota|record/i);
+  assert.equal(callbackHealthy, false);
+  await fs.chmod(path.join(options.directory, 'samples.jsonl'), 0o600);
+  await fs.unlink(path.join(options.directory, 'samples.jsonl')); await fs.mkdir(path.join(options.directory, 'samples.jsonl'));
+  persistenceFailure = undefined;
+  await assert.rejects(probeRegistry({ ...options, afterRecord(sample) { callbackHealthy ||= sample.kind === 'healthy'; }, onFailure(sample) { persistenceFailure = sample; } }), /evidence|quota|record/i);
+  assert.equal(callbackHealthy, false); assert.equal(persistenceFailure.kind, 'error');
 });
 
 test('alerts send bounded JSON, never follow redirects and sanitize secrets on failure', async t => {

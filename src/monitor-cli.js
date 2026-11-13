@@ -63,13 +63,14 @@ try {
       try { previous = JSON.parse(await fs.readFile(path.join(directory, 'last-notified.json'))); }
       catch (error) { if (error.code !== 'ENOENT') throw error; }
       const result = await probeRegistry({ root, baseUrl, historyDirectory: commit ? historyDirectory : path.join(work, 'missing'), directory, historyCommit: commit,
-        beforeRecord: async sample => {
+        onFailure: sample => notify({ service: 'macromaxx-registry', ...sample }),
+        afterRecord: async sample => {
           if (sample.kind === 'healthy' && (!commit || latest() !== commit)) throw new Error('History changed during probe.');
           const payload = { service: 'macromaxx-registry', ...sample };
           if (sample.kind !== 'healthy' || (previous && previous.kind !== 'healthy')) await notify(payload);
-          if (sample.kind === 'healthy') await deliverAlert({ url: process.env.MONITOR_HEARTBEAT_URL, token: process.env.MONITOR_HEARTBEAT_TOKEN, payload });
           const temp = path.join(directory, 'last-notified.json.tmp');
           await fs.writeFile(temp, JSON.stringify({ kind: sample.kind }), { mode: 0o600 }); await fs.rename(temp, path.join(directory, 'last-notified.json'));
+          if (sample.kind === 'healthy') await deliverAlert({ url: process.env.MONITOR_HEARTBEAT_URL, token: process.env.MONITOR_HEARTBEAT_TOKEN, payload });
         },
       });
       console.log(JSON.stringify(result)); if (result.kind !== 'healthy') process.exitCode = 1;

@@ -85,6 +85,14 @@ Before enabling the shipped app:
 4. Pin the same independently reviewed root and production `/metadata/` and `/targets/` URLs into the app only after live checks pass. Do not adopt a downloaded `client-config.json` as a root of trust. Old authority installations/settings are not migrated/deleted.
 5. Test the actual packaged app, native modules and ASAR worker/WASM. Run full app/runtime suites and platform-specific checks for every OS you promise to support. Linux success is not Windows/macOS certification. Commit/release the app separately; uncommitted local integration is not a shipped release.
 
+A repeatable packaged-runtime fixture check is included (run from the registry checkout with the app's Electron executable and actual absolute ASAR module path):
+
+```sh
+ELECTRON_RUN_AS_NODE=1 /absolute/path/to/electron scripts/verify-packaged-store.js /absolute/path/to/resources/app.asar/node_modules/@macromaxx/plugin-runtime/src/index.js
+```
+
+It checks consent denial, install/action, close/reopen with persisted state, update preserving settings, and revocation execution/install denial through the real packaged worker/WASM. It uses a new loopback-only signing identity and private temporary state, never production keys or a real workspace. Store close/reopen in this harness is **not** a GUI/application-process restart or real-production-plugin approval; those remain separate acceptance steps.
+
 The current six-hour refresh and **24-hour timestamp/catalog expiry** remain intentional: installed store plugins stop when trust expires. This work does not add offline grace. Changing that product/security policy requires an explicit decision, not an availability workaround.
 
 ## 5. Monitoring outside GitHub
