@@ -7,7 +7,10 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "validate": "node src/check-inputs.js",
-    "store:doctor": "node src/ops.js"
+    "store:doctor": "node src/ops.js",
+    "store:probe": "node src/monitor-cli.js probe",
+    "store:soak": "node src/monitor-cli.js soak",
+    "store:alert-test": "node src/monitor-cli.js alert-test"
   },
   "dependencies": {
     "@macromaxx/plugin-sdk": "file:vendor/macromaxx-plugin-sdk-0.1.0.tgz",
