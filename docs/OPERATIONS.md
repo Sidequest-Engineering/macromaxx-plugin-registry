@@ -2,6 +2,8 @@
 
 ## Readiness and hosting
 
+Use [the concrete go-live checklist](GO_LIVE.md) for operator actions and `npm run store:doctor` for read-only prerequisite checks. Configuration readiness and delivery acceptance are separate. External monitoring/Healthchecks services are deferred by operator request; no additional host, webhook or heartbeat is required for activation.
+
 Production uses the Pages project site at `https://sidequest-engineering.github.io/macromaxx-plugin-registry/`, with `metadata/` and `targets/` endpoints. A documentation-only page can be deployed before activation, but it must say **activation pending** and must not pretend an unsigned/empty response is a verified catalog. The local app stays explicitly disabled until independently pinned production trust works.
 
 Activation requires effective protected-main/CODEOWNERS rules, the named review exception isolated from no-bypass CI/PR rules, operator-confirmed [offline root custody and encrypted recovery backup plus isolated governance auditor](KEY_CUSTODY.md), three online-role secrets, a successful signed bootstrap and normal renewal, and real HTTPS/client/app verification. Do not advertise all gates as passed merely because a workflow file exists.
@@ -23,7 +25,7 @@ GitHub Pages limits: published site ≤1 GB, recommended source repository ≤1 
 
 The health workflow has no signing keys. It verifies live metadata/catalog with the pinned root and compares version/timestamp/catalog identity with the current authenticated `production-publication` history. A still-valid older deployment cannot close an incident after a failed newer deployment. It warns with six hours remaining and maintains one deduplicated issue; verified recovery closes it. Signing/deployment failure reports use the same maintainer-visible incident channel. Review issues and Actions failures, including quota/rate-limit errors.
 
-An Actions-only monitor can itself stop during disabled workflows or a GitHub outage. For dependable notification, configure an external monitor/operator calendar outside GitHub for metadata expiry, workflow availability, root renewal and backups. No external service/account is provisioned by this repository.
+An Actions-only monitor can itself stop during disabled workflows or a GitHub outage. External monitoring/notification is deliberately deferred for now; maintainers must watch Actions and registry-health issues themselves. No external service/account is provisioned, and out-of-GitHub outage notification is not claimed.
 
 - **HTTP429/502/503/504:** client retries are bounded; show the actual status/path if still unavailable. Do not interpret 5xx as a missing next root, disable TLS/signatures or extend trust. Check Pages/Actions status and retry later.
 - **Expired metadata:** restore legitimate scheduled signing with the same authority and incremented version. Do not relax expiration checks or reset the clock.

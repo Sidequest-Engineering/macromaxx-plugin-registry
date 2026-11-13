@@ -7,6 +7,8 @@ import { validateCatalog } from '@macromaxx/plugin-sdk/contracts';
 import { canonicalize } from '@tufjs/canonical-json';
 import { sha256, verifyPublicationHistory } from './repository.js';
 import { assertLivePublication } from './release-gates.js';
+import { rootFingerprint } from './release-gates.js';
+import { isDeepStrictEqual } from 'node:util';
 
 export function assessPublishedHealth({ live, publication, now }) {
   try { assertLivePublication(live, publication); return assessHealth({ configured: true, validUntil: live.validUntil, now }); }
@@ -41,7 +43,7 @@ export function incidentActions(health, issues) {
   ];
 }
 
-export async function verifyLiveRegistry({ root, baseUrl, allowLoopback = false }) {
+export async function verifyLiveRegistry({ root, baseUrl, allowLoopback = false, directory: retainedDirectory }) {
   const base = new URL(baseUrl);
   if (base.username || base.password || base.search || base.hash || !base.pathname.endsWith('/') || (base.protocol !== 'https:' && !(allowLoopback && base.protocol === 'http:' && base.hostname === '127.0.0.1')))
     throw new Error('Health endpoint requires an HTTPS directory.');
@@ -55,9 +57,22 @@ export async function verifyLiveRegistry({ root, baseUrl, allowLoopback = false 
       return response.body;
     }
   }
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-health-client-'));
+  const directory = retainedDirectory || await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-health-client-'));
   try {
-    await fs.writeFile(path.join(directory, 'root.json'), JSON.stringify(root), { mode: 0o600 });
+    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    if (retainedDirectory) {
+      const identity = { rootSha256: rootFingerprint(root), baseUrl: base.href };
+      const file = path.join(directory, 'client-identity.json');
+      try {
+        const stat = await fs.lstat(file);
+        if (!stat.isFile() || stat.size > 4096 || !isDeepStrictEqual(JSON.parse(await fs.readFile(file)), identity)) throw new Error('Persistent health client pinned authority/endpoint identity changed.');
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        if ((await fs.readdir(directory)).length) throw new Error('Persistent health client has no independently pinned identity; do not reset existing trust.');
+        await fs.writeFile(file, JSON.stringify(identity), { flag: 'wx', mode: 0o600 });
+      }
+    }
+    await fs.writeFile(path.join(directory, 'root.json'), JSON.stringify(root), { flag: 'wx', mode: 0o600 }).catch(error => { if (error.code !== 'EEXIST') throw error; });
     const updater = new Updater({ metadataDir: directory, metadataBaseUrl: metadata.href, targetBaseUrl: targets.href, fetcher: new Fetcher(), config: { maxDelegations: 0, maxRootRotations: 32, rootMaxLength: 512 * 1024, timestampMaxLength: 64 * 1024, snapshotMaxLength: 512 * 1024, targetsMaxLength: 5 * 1024 * 1024 } });
     await updater.refresh();
     const info = await updater.getTargetInfo('catalog.json');
@@ -69,5 +84,5 @@ export async function verifyLiveRegistry({ root, baseUrl, allowLoopback = false 
     if (!Number.isFinite(validUntil) || validUntil <= Date.now()) throw new Error('Live registry trust expired.');
     const timestamp = JSON.parse(await fs.readFile(path.join(directory, 'timestamp.json')));
     return { validUntil, releases: catalog.releases.length, metadataVersion: timestamp.signed.version, timestampSha256: sha256(Buffer.from(canonicalize(timestamp))), catalogSha256: info.hashes.sha256 };
-  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+  } finally { if (!retainedDirectory) await fs.rm(directory, { recursive: true, force: true }); }
 }

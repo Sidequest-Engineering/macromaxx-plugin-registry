@@ -1,5 +1,7 @@
 # Production key custody and activation
 
+For exact operator commands and the separate post-custody/bootstrap/monitor/app acceptance gates, follow [GO_LIVE](GO_LIVE.md). `npm run store:doctor` reports missing setup without uploading keys or changing custody flags.
+
 The production identity is independent of all test/unit-fixture roots. Never promote a test private key or download a public root and adopt it opportunistically.
 
 ## Operator ceremony
