@@ -25,5 +25,6 @@ export function assessReadiness({ root, rules, codeowners, environments = {}, va
   check('auditor', 'Create/install the repository-only governance GitHub App, configure GOVERNANCE_APP_ID and GOVERNANCE_APP_PRIVATE_KEY in production-governance, and test the real audit workflow. No personal CLI token in CI.', () => /^[1-9][0-9]*$/.test(environments['production-governance']?.variables?.GOVERNANCE_APP_ID || '') && environments['production-governance']?.secrets?.includes('GOVERNANCE_APP_PRIVATE_KEY'));
   const blockers = checks.filter(check => !check.ok);
   return { readyForBootstrap: blockers.length === 0, deliveryReady: false, publication: historyCommit ? 'history-present-not-yet-accepted' : 'not-published', fingerprint: rootFingerprint(root), checks, blockers,
-    remainingAcceptance: ['Real auditor credential and signed bootstrap/normal renewal', 'Fresh and persisted production client plus packaged plugin lifecycle acceptance', 'External alert receipt and dead-monitor alert verification', '48 hours of healthy real observations and supported-platform release acceptance'] };
+    remainingAcceptance: ['Real auditor credential and signed bootstrap/normal renewal', 'Fresh and persisted production client plus packaged plugin lifecycle acceptance', 'Elapsed real operating observation and supported-platform release acceptance'],
+    deferredByOperator: ['External monitoring/notification service; not a bootstrap or activation requirement'] };
 }

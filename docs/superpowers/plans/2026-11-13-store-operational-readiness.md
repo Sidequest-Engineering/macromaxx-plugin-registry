@@ -7,6 +7,8 @@
 **Tech Stack:** Existing Node.js, tuf-js, Git/GitHub CLI; optional external systemd timer and HTTPS alert endpoint. No new runtime dependencies.
 **Spec:** `docs/superpowers/specs/2026-11-12-production-pages-store-design.md`, `docs/OPERATIONS.md`, `docs/KEY_CUSTODY.md`, and the user's 2026-11-13 approval of implementation of the five-step production-readiness proposal. User requested execution rather than another design discussion; no authorization to fabricate custody or weaken expiry.
 
+**Operator amendment:** External Healthchecks/monitoring was explicitly cancelled during execution. Task2's new external monitor CLI/webhook/heartbeat/systemd components are removed from the active branch; retain only reusable persistent signed-client validation and its regressions. No external monitoring setup blocks activation. Existing internal signature/deployment/health workflows remain. The operator explicitly confirmed root custody/backup and authorized creating the dedicated auditor App through logged-in Chrome; online-role/App credentials are now provisioned and the actual App token was verified/revoked. Real bootstrap/renewal/app activation proceeds under the original trust policy.
+
 ## Global Constraints
 - Preserve main PR/CI and EinCloudy's named review exception; no direct push to main.
 - No root/private-key disclosure, no personal admin token in CI, no upload before actual operator custody confirmation.
