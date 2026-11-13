@@ -20,8 +20,17 @@ test('actual Pages tar rejects valid older signed bytes when history has advance
   await preparePagesSite({ ...options, previousSiteDirectory: first, outputDirectory: second });
   const archive = path.join(directory, 'old.tar'); execFileSync('tar', ['-cf', archive, '-C', first, '.']);
   await assert.rejects(verifyDeploymentTar({ archive, outputDirectory: path.join(directory, 'old-extracted'), root: trust.root, historyDirectory: second, kind: 'signed' }), /publication|deployed|history|mismatch/i);
-  const latest = path.join(directory, 'new.tar'); execFileSync('tar', ['-cf', latest, '-C', second, '.']);
+  const latest = path.join(directory, 'new.tar'); execFileSync('tar', ['--exclude=.nojekyll', '-cf', latest, '-C', second, '.']);
   assert.equal(await verifyDeploymentTar({ archive: latest, outputDirectory: path.join(directory, 'new-extracted'), root: trust.root, historyDirectory: second, kind: 'signed' }), true);
+});
+
+test('official Pages upload may omit the non-served .nojekyll marker, but no delivered file', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-pages-marker-')); t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const site = path.join(directory, 'site'); await fs.mkdir(site);
+  await fs.writeFile(path.join(site, 'index.html'), renderLanding({ releases: [] }, { active: false })); await fs.writeFile(path.join(site, '.nojekyll'), '');
+  const archive = path.join(directory, 'official.tar');
+  execFileSync('tar', ['--exclude=.[^/]*', '-cf', archive, '-C', site, '.']);
+  assert.equal(await verifyDeploymentTar({ archive, outputDirectory: path.join(directory, 'verified'), kind: 'pending' }), true);
 });
 
 test('pending tar contains only the expected landing and rejects archive links', async t => {
