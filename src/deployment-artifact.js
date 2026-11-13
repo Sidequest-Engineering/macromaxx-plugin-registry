@@ -31,13 +31,19 @@ export async function verifyDeploymentTar({ archive, outputDirectory, root, hist
     const target = path.join(outputDirectory, file.relative); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes);
   }
   const actual = await staticFiles(outputDirectory);
+  // upload-pages-artifact deliberately excludes dotfiles from the delivered tar.
+  // .nojekyll is a build marker, not signed or served payload; it is optional
+  // here only. Every other file must still match the authoritative site exactly.
+  if (actual.has('.nojekyll') && actual.get('.nojekyll').length !== 0) throw new Error('Unexpected Pages build marker contents.');
+  actual.delete('.nojekyll');
   if (kind === 'pending') {
-    if (actual.size !== 2 || actual.get('.nojekyll')?.length !== 0 || actual.get('index.html')?.toString() !== renderLanding({ releases: [] }, { active: false }))
+    if (actual.size !== 1 || actual.get('index.html')?.toString() !== renderLanding({ releases: [] }, { active: false }))
       throw new Error('Pending deployment contains unexpected active contents.');
   } else {
     if (kind !== 'signed' || !historyDirectory) throw new Error('Missing authoritative deployment history.');
     assertLivePublication(await publicationIdentity(outputDirectory, root), await publicationIdentity(historyDirectory, root));
     const expected = await staticFiles(historyDirectory);
+    expected.delete('.nojekyll');
     if (actual.size !== expected.size || [...expected].some(([name, bytes]) => !actual.get(name)?.equals(bytes)))
       throw new Error('Pages artifact differs from the current authoritative publication.');
   }
