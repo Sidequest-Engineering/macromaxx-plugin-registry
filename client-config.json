@@ -1,0 +1,77 @@
+{
+  "enabled": true,
+  "channel": "production",
+  "metadataUrl": "https://sidequest-engineering.github.io/macromaxx-plugin-registry/metadata/",
+  "targetsUrl": "https://sidequest-engineering.github.io/macromaxx-plugin-registry/targets/",
+  "root": {
+    "signatures": [
+      {
+        "keyid": "3661f49f6fe7c319ccc1846e56672d77c35a74bb908c0f9fc70009dc4cf097dd",
+        "sig": "d4500bba5f2c409fc3cca74a4432bd43d4c51eb432b316c1a26e70429ee098d81af5ea192ea7ef7c3bd8ace46c9c3fa8963417dbbd9110ff9d8d1955ec009507"
+      }
+    ],
+    "signed": {
+      "_type": "root",
+      "spec_version": "1.0.31",
+      "version": 1,
+      "expires": "2027-11-12T21:35:30.123Z",
+      "keys": {
+        "3661f49f6fe7c319ccc1846e56672d77c35a74bb908c0f9fc70009dc4cf097dd": {
+          "keytype": "ed25519",
+          "scheme": "ed25519",
+          "keyval": {
+            "public": "acd1694fd1485ad9da7aed378f79b750ce745f2e559db9157fc221f0c01915c5"
+          }
+        },
+        "eca80aef10650a80dca4011abe930883ca3b3b3cf8679333fb449fd042aef2a2": {
+          "keytype": "ed25519",
+          "scheme": "ed25519",
+          "keyval": {
+            "public": "432c4d60f6b49d4d8961ad5cfb275ef671b2aa389919e14169a72a5f3a374bbe"
+          }
+        },
+        "069afa5fcd4a07ae46750bd379fb931056e37732bf1f0c171f145de5a3dbd574": {
+          "keytype": "ed25519",
+          "scheme": "ed25519",
+          "keyval": {
+            "public": "8fc2ff9ad4ad5896789d65fa65ac506945290f80cd384f044843e9e2c496c143"
+          }
+        },
+        "06d9ed6b425031c1cbfe2e5835e0b1599a60eaca9b84c2712192703dff706027": {
+          "keytype": "ed25519",
+          "scheme": "ed25519",
+          "keyval": {
+            "public": "f308dc439159ef29e7b55fc07ee87988861ea8ebb12e6292d070372e520b2f78"
+          }
+        }
+      },
+      "roles": {
+        "root": {
+          "keyids": [
+            "3661f49f6fe7c319ccc1846e56672d77c35a74bb908c0f9fc70009dc4cf097dd"
+          ],
+          "threshold": 1
+        },
+        "targets": {
+          "keyids": [
+            "eca80aef10650a80dca4011abe930883ca3b3b3cf8679333fb449fd042aef2a2"
+          ],
+          "threshold": 1
+        },
+        "snapshot": {
+          "keyids": [
+            "069afa5fcd4a07ae46750bd379fb931056e37732bf1f0c171f145de5a3dbd574"
+          ],
+          "threshold": 1
+        },
+        "timestamp": {
+          "keyids": [
+            "06d9ed6b425031c1cbfe2e5835e0b1599a60eaca9b84c2712192703dff706027"
+          ],
+          "threshold": 1
+        }
+      },
+      "consistent_snapshot": true
+    }
+  }
+}
