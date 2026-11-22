@@ -59,6 +59,8 @@ verified import → protected signing → retained history → GitHub Pages
 
 Production metadata and packages use the Pages project-root `metadata/` and `targets/` endpoints. Publication retains authenticated state on `production-publication`; the former `gh-pages` test branch is inactive audit history, not production input. Scheduled renewal every six hours does not approve new packages: it republishes protected-main registry contents with a new metadata version.
 
+Both `catalog.json` (legacy permissions) and `catalog-v2.json` (full catalog) are authenticated targets in the same publication. New clients use the full catalog when it is present in signed metadata; legacy clients keep reading their original target.
+
 ## What verification does—and does not—mean
 
 - Signatures and hashes authenticate approved bytes; they are **not** a malware scanner or a promise that code is harmless.

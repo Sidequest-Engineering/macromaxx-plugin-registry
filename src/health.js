@@ -95,10 +95,17 @@ export async function verifyLiveRegistry({ root, baseUrl, allowLoopback = false,
     if (!info || info.length > 5 * 1024 * 1024) throw new Error('Missing/oversized authenticated catalog.');
     const file = await updater.downloadTarget(info, path.join(directory, 'catalog.json'));
     const catalog = validateCatalog(JSON.parse(await fs.readFile(file)));
+    const extendedInfo = await updater.getTargetInfo('catalog-v2.json');
+    let extended = catalog;
+    if (extendedInfo) {
+      if (extendedInfo.length > 5 * 1024 * 1024) throw new Error('Oversized authenticated extended catalog.');
+      const extendedFile = await updater.downloadTarget(extendedInfo, path.join(directory, 'catalog-v2.json'));
+      extended = validateCatalog(JSON.parse(await fs.readFile(extendedFile)));
+    }
     const expirations = await Promise.all(['root', 'timestamp', 'snapshot', 'targets'].map(async role => Date.parse(JSON.parse(await fs.readFile(path.join(directory, role + '.json'))).signed.expires)));
-    const validUntil = Math.min(Date.parse(catalog.expires), ...expirations);
+    const validUntil = Math.min(Date.parse(catalog.expires), Date.parse(extended.expires), ...expirations);
     if (!Number.isFinite(validUntil) || validUntil <= Date.now()) throw new Error('Live registry trust expired.');
     const timestamp = JSON.parse(await fs.readFile(path.join(directory, 'timestamp.json')));
-    return { validUntil, releases: catalog.releases.length, metadataVersion: timestamp.signed.version, timestampSha256: sha256(Buffer.from(canonicalize(timestamp))), catalogSha256: info.hashes.sha256 };
+    return { validUntil, releases: extended.releases.length, metadataVersion: timestamp.signed.version, timestampSha256: sha256(Buffer.from(canonicalize(timestamp))), catalogSha256: info.hashes.sha256 };
   } finally { if (!retainedDirectory) await fs.rm(directory, { recursive: true, force: true }); }
 }

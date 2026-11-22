@@ -95,6 +95,34 @@ test('imports exact reviewed bytes create-only and publishes real signed TUF met
   );
 });
 
+test('retains byte-exact extended releases and revocations without adding unknown grants to the legacy catalog', async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-two-catalogs-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const extended = {
+    ...manifest, id: 'example--deck', permissions: ['deck:write', 'opencode:sessions:read'],
+    appVersion: '>=0.2.0 <0.3.0',
+  };
+  const pkg = encodePackage(extended, 'var __pluginModule={default:{actions:{count:{execute(){}}}}};');
+  const additional = { manifest: extended, sha256: createHash('sha256').update(pkg).digest('hex'), length: pkg.length, status: 'approved' };
+  await importPackage(dir, release, bytes);
+  await importPackage(dir, additional, pkg);
+  const trust = createTrust();
+  const input = { ...registry, releases: [release, additional] };
+  const loadCatalog = async (version, name) => {
+    const targets = JSON.parse(await fs.readFile(path.join(dir, 'metadata', `${version}.targets.json`)));
+    const digest = targets.signed.targets[name]?.hashes.sha256;
+    assert.ok(digest, `${name} must be listed in signed targets`);
+    return JSON.parse(await fs.readFile(path.join(dir, 'targets', `${digest}.${name}`)));
+  };
+  await publishRepository({ directory: dir, registry: input, root: trust.root, keys: trust.keys, version: 1 });
+  assert.deepEqual((await loadCatalog(1, 'catalog.json')).releases, [release]);
+  assert.deepEqual((await loadCatalog(1, 'catalog-v2.json')).releases, [release, additional]);
+  const revoked = { ...additional, status: 'revoked' };
+  await publishRepository({ directory: dir, registry: { ...input, releases: [release, revoked] }, root: trust.root, keys: trust.keys, version: 2 });
+  assert.deepEqual((await loadCatalog(2, 'catalog.json')).releases, [release]);
+  assert.deepEqual((await loadCatalog(2, 'catalog-v2.json')).releases, [release, revoked]);
+});
+
 test('clean publication requires authenticated history and rejects replay/changed descriptors', async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-history-'));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));

@@ -21,6 +21,7 @@ export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex'
 const json = (value) => Buffer.from(JSON.stringify(value));
 const identity = (r) => r.manifest.id + '@' + r.manifest.version;
 const descriptor = (r) => ({ manifest: r.manifest, sha256: r.sha256, length: r.length });
+const legacyPermissions = new Set(['display:write', 'settings:read', 'settings:write']);
 
 export function validateRegistry(registry, previous) {
   exactKeys(registry, ['schemaVersion', 'publishers', 'releases']);
@@ -207,9 +208,15 @@ export async function publishRepository({
     throw new Error('Invalid or expired root.');
   const expires = (days) => new Date(+now + days * 86400000).toISOString();
   const catalog = { schemaVersion: 1, expires: expires(1), releases: registry.releases };
+  // The original validator fails the entire catalog on unknown permissions,
+  // even when the entry's appVersion excludes that client.
+  const legacyCatalog = { ...catalog, releases: catalog.releases.filter(
+    release => release.manifest.permissions.every(permission => legacyPermissions.has(permission)),
+  ) };
   const stateBytes = json({ version, registry });
   const files = new Map([
-    ['catalog.json', json(catalog)],
+    ['catalog.json', json(legacyCatalog)],
+    ['catalog-v2.json', json(catalog)],
     ['registry-state.json', stateBytes],
   ]);
   for (const release of registry.releases) {
